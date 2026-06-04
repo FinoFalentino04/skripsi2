@@ -12,12 +12,9 @@ st.subheader("Menggunakan Algoritma K-Nearest Neighbor (K-NN) - Kecamatan Cisaat
 st.write("---")
 
 # 3. Memuat Model K-NN dan Z-Score Scaler
-# Menggunakan st.cache_resource agar model tidak di-load berulang kali dari memori
 @st.cache_resource
 def load_model_and_scaler():
     try:
-        # Pastikan Anda telah mengunduh knn_model.pkl dan scaler.pkl terbaru 
-        # dari Colab setelah melakukan perbaikan aturan pelabelan medis tadi
         model_knn = joblib.load('knn_model_cisaat.pkl')
         model_scaler = joblib.load('scaler_cisaat.pkl')
         return model_knn, model_scaler
@@ -34,8 +31,6 @@ else:
     
     col1, col2 = st.columns(2)
     
-    # Urutan input harus sama persis dengan saat training di Colab:
-    # ['Usia', 'Berat Badan Sebelum Hamil (kg)', 'IMT', 'LiLA']
     with col1:
         usia = st.number_input("Usia (Tahun)", min_value=10, max_value=60, value=25, step=1)
         bb = st.number_input("Berat Badan Sebelum Hamil (kg)", min_value=30.0, max_value=150.0, value=50.0, step=0.1)
@@ -52,18 +47,25 @@ else:
         # Membentuk array dari input pengguna
         data_input = np.array([[usia, bb, imt, lila]])
         
-        # WAJIB: Normalisasi data input menggunakan Z-Score Scaler dari data latih
+        # Normalisasi data input menggunakan Z-Score Scaler
         data_input_scaled = scaler.transform(data_input)
         
-        # Prediksi menggunakan model K-NN
+        # Mendapatkan kelas prediksi akhir (0 atau 1)
         prediksi = knn.predict(data_input_scaled)
         
-        # 6. Menampilkan Hasil Klasifikasi beserta penjelasan medisnya
+        # FUNGSI BARU: Mendapatkan nilai probabilitas / persentase
+        probabilitas = knn.predict_proba(data_input_scaled)[0]
+        persentase_aman = probabilitas[0] * 100
+        persentase_risiko = probabilitas[1] * 100
+        
+        # 6. Menampilkan Hasil Klasifikasi beserta Persentase
         st.write("### Hasil Prediksi K-NN:")
         
         if prediksi[0] == 1:
-            st.error("⚠️ **Kategori: RISIKO TINGGI**")
+            # Menampilkan persentase risiko tinggi
+            st.error(f"⚠️ **Kategori: RISIKO TINGGI (Probabilitas: {persentase_risiko:.1f}%)**")
             st.write("Sistem memprediksi pasien masuk dalam kategori Risiko Tinggi berdasarkan perhitungan jarak K-NN. Hal ini dapat dipicu oleh deteksi kesamaan pola pada faktor usia ekstrem (< 20 atau > 35 tahun), indikasi Kurang Energi Kronis (LiLA < 23.5 cm), IMT tidak normal, atau berat badan kurang dari standar (< 45 kg).")
         else:
-            st.success("✅ **Kategori: TIDAK BERISIKO**")
+            # Menampilkan persentase tingkat aman
+            st.success(f"✅ **Kategori: TIDAK BERISIKO (Probabilitas Aman: {persentase_aman:.1f}%)**")
             st.write("Sistem memprediksi status kehamilan pasien aman. Parameter usia, berat badan, IMT, dan LiLA memiliki kedekatan jarak (Euclidean) dengan data warga yang tidak memiliki risiko klinis.")
